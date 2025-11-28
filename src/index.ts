@@ -1,109 +1,53 @@
 
 
-import { createServer, IncomingMessage, ServerResponse } from "http";
-import { parse } from 'querystring'
+import express from "express";
+import { engine } from "express-handlebars"
+import { fileURLToPath } from "url";
+import path from 'path'
 
-const htmlBoilerPlate = (title: string, body: string) => {
-  return `
-   <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${title}</title>
-      <link rel="stylesheet" href="teste.css">
-    </head>
-    <body>
-      ${body}
-    </body>
-    </html>
-  `
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express()
+app.use(express.urlencoded({ extended: true }));
+
+app.set('view engine', 'hbs')
+app.engine('hbs', engine({
+  extname: '.hbs'
+}))
+app.set('views', path.join(__dirname, 'views'))
+
+app.get('/', (req, res) => {
+  res.render('index', {
+    title:'Página inicial'
+  })
+})
 
 
-const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-  const { method, url } = req
-  console.log(`[LOG] ${method} - ${url}`)
+app.get('/formulario.html', (req, res) => {
+  res.render('formulario', {
+    title: 'Formulario de cadastro'
+  })
+})
 
-  res.setHeader('Content-Type', 'text/html')
-  res.setHeader('charset', 'utf-8')
-
-  if(method == 'GET') {
-    if(url == '/formulario.html') {
-      res.write(htmlBoilerPlate('Meu formulário', `
-        <form action="processar" method="POST">
-          <div>
-            Login: <input type="text" name="login">
-          </div>
-          <div>
-            Senha: <input type="password" name="password">
-          </div>
-          <input type="submit">
-        </form>
-        `)
-      )
-      
-    } else if(url == '/' || url == '/index.html') {
-      res.write(htmlBoilerPlate('Página inicial', 
-        ` <h1>Oi mundo</h1>
-          <a href="formulario.html">Acessar formulário</a>
-        `
-      ))
-    
-    } else if(url?.includes('/processar')) {
-      const variables = parse(url?.split('?')[1] || '')
-
-      if(!variables.name) {
-        res.write(htmlBoilerPlate('Meu formulário', `
-          <h1>Voce nao preencheu corretamente</h1>
-        <form action="processar" method="POST">
-          <div>
-            Login: <input type="text" name="login">
-          </div>
-          <div>
-            Senha: <input type="password" name="password">
-          </div>
-          <input type="submit">
-        </form>
-        `)
-        )
-      } else {
-      
-      res.write(htmlBoilerPlate('Dados enviados', `
-        Bem-vindo ${variables.login}
-        Você logou com sucesso. Sua senha é ótimo ${variables.password}
-      `))
-      }
-    
-    } 
-    else {
-      res.statusCode = 404
-    
-    }
+app.post('/processar', (req, res) => {
+  const { login, password } = req.body
+  if(login && password) {
+  
+    res.render('concluido', {
+      title: 'Cadastro concluído',
+      email: login
+    })
   } else {
-    if(url?.includes('/processar')) {
-      const variables = parse(url?.split('?')[1] || '')
-
-        const chunks = [];
-        for await (const chunk of req) {
-          chunks.push(chunk);
-        }
-
-        const data = Buffer.concat(chunks);
-      
-      res.write(htmlBoilerPlate('Dados enviados', `
-        Bem-vindo ${data.toString()}
-      `))
-    
-    } else {
-      res.statusCode = 501
-    }
-    
+    res.render('formulario', {
+      title: 'Dados inválidos',
+      error: true
+    })
   }
-  res.end()
 
-});
+})
 
-server.listen(8083, () => {
+
+app.listen(8083, () => {
   console.log("The server is running")
 })
